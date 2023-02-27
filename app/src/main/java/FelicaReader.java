@@ -3,6 +3,7 @@ import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import javazoom.jl.decoder.JavaLayerException;
 
+import javax.swing.*;
 import java.io.*;
 
 
@@ -13,6 +14,7 @@ public class FelicaReader implements Runnable {
     Pointer pasoriHandle;
     Pointer felicaHandle;
     String studentNum;
+    String idm;
 
     public FelicaReader(Main main) throws NoFoundReaderException {
         this.main = main;
@@ -25,38 +27,33 @@ public class FelicaReader implements Runnable {
         }
     }
 
-    public String getStudentNum(short systemCode) throws FelicaException {
-        FelicaLib.INSTANCE.felica_free(felicaHandle);
-        felicaHandle = FelicaLib.INSTANCE.felica_polling(pasoriHandle, systemCode, (byte) 0, (byte) 0);
-        if (felicaHandle == Pointer.NULL) {
+    public String getIdm(short systemCode) throws FelicaException {
+        String returnIdm;
+        FelicaLib.INSTANCE.felica_free(this.felicaHandle);
+        this.felicaHandle = FelicaLib.INSTANCE.felica_polling(this.pasoriHandle, systemCode, (byte) 0, (byte) 0);
+        if (this.felicaHandle == Pointer.NULL) {
             throw new FelicaException("カード読み取り失敗");
         }
-        byte[] buf = new byte[16];
-        FelicaLib.INSTANCE.felica_read_without_encryption02(felicaHandle, 0x1A8B, 0, (byte) 0x00, buf);
+        byte[] buf = new byte[8];
+        FelicaLib.INSTANCE.felica_getidm(this.felicaHandle, buf);
 
-        String studentNum = "";
-        for (int i = 2; i < buf.length - 3; i++) {
-            String temStudentNum = String.format("%02x", buf[i]);
-            studentNum = studentNum + temStudentNum.charAt(1);
-        }
-        return studentNum;
-    }
+        StringBuilder stringBuilder = new StringBuilder();
 
-    public String getName(short systemCode) throws FelicaException {
-        FelicaLib.INSTANCE.felica_free(felicaHandle);
-        felicaHandle = FelicaLib.INSTANCE.felica_polling(pasoriHandle, systemCode, (byte) 0, (byte) 0);
-        if (felicaHandle == Pointer.NULL) {
-            throw new FelicaException("カード読み取り失敗");
+        for (byte b : buf) {
+            String hex = Integer.toHexString(b);
+            if (hex.length() == 1) {
+                // 1文字の場合前に0を付加
+                stringBuilder.append("0");
+            }
+            if (hex.length() > 2) {
+                // 3文字以上の場合は最後の2文字のみ使用
+                hex = hex.substring(hex.length() - 2);
+            }
+            stringBuilder.append(hex);
         }
-        byte[] buf = new byte[16];
-        FelicaLib.INSTANCE.felica_read_without_encryption02(felicaHandle, 0x1A8B, 0, (byte) 0x01, buf);
-        String studentName = "";
-        for (int i = 0; i < buf.length; i++) {
-            String temStudentName = String.format("%02X", buf[i]);
-            String a = String.valueOf(buf[i]);
-            studentName = studentName + changeBytesDataForName(temStudentName);
-        }
-        return studentName;
+        //DEBUG:ここでの値をcheck
+        System.out.println("IDM:" + stringBuilder.toString());
+        return stringBuilder.toString();
     }
 
     public void close() {
@@ -73,13 +70,12 @@ public class FelicaReader implements Runnable {
         while (true) {
             // Felicaカードの読み取りループ
             try {
-                this.studentNum = getStudentNum(FelicaReader.WILDCARD);
+                this.idm = getIdm(FelicaReader.WILDCARD);
 
-                if (!this.studentNum.equals("00000000000")) {
-                    if (!this.main.studentNumField.getText().equals(this.studentNum)) {
-                        String studentName = getName(FelicaReader.WILDCARD);
-                        this.main.studentNumField.setText(this.studentNum);
-                        this.main.process(this.studentNum, studentName);
+                if (!this.idm.equals("00000000000")) {
+                    if (!this.main.idmField.getText().equals(this.idm)) {
+                        this.main.idmField.setText(this.idm);
+                        this.main.process(this.idm);
                     }
                 } else {
                     try (InputStream is = new FileInputStream(new File("badMusic.mp3"))) {
@@ -91,8 +87,8 @@ public class FelicaReader implements Runnable {
                     } catch (IOException ioexception) {
                         ioexception.printStackTrace();
                     }
+                    JOptionPane.showMessageDialog(this.main.getContentPane(), "ICカードではないか、正しく読み取りができていません。", "エラー", JOptionPane.ERROR_MESSAGE);
                 }
-                //JOptionPane.showMessageDialog(this.main.getContentPane(), "学生証ではないか、正しく読み取りができていません。", "エラー", JOptionPane.ERROR_MESSAGE);
 
 
             } catch (FelicaException e) {
@@ -104,358 +100,6 @@ public class FelicaReader implements Runnable {
                 e.printStackTrace();
             }
         }
-    }
-
-    private String changeBytesDataForName(String bytesData) {
-        String result = null;
-        switch (bytesData) {
-            case "41":
-                result = "A";
-                break;
-            case "42":
-                result = "B";
-                break;
-            case "43":
-                result = "C";
-                break;
-            case "44":
-                result = "D";
-                break;
-            case "45":
-                result = "E";
-                break;
-            case "46":
-                result = "F";
-                break;
-            case "47":
-                result = "G";
-                break;
-            case "48":
-                result = "H";
-                break;
-            case "49":
-                result = "I";
-                break;
-            case "4A":
-                result = "J";
-                break;
-            case "4B":
-                result = "K";
-                break;
-            case "4C":
-                result = "L";
-                break;
-            case "4D":
-                result = "M";
-                break;
-            case "4E":
-                result = "N";
-                break;
-            case "4F":
-                result = "M";
-                break;
-            case "50":
-                result = "P";
-                break;
-            case "51":
-                result = "Q";
-                break;
-            case "52":
-                result = "R";
-                break;
-            case "53":
-                result = "S";
-                break;
-            case "54":
-                result = "T";
-                break;
-            case "55":
-                result = "U";
-                break;
-            case "56":
-                result = "V";
-                break;
-            case "57":
-                result = "W";
-                break;
-            case "58":
-                result = "X";
-                break;
-            case "59":
-                result = "Y";
-                break;
-            case "5A":
-                result = "Z";
-                break;
-            case "61":
-                result = "a";
-                break;
-            case "62":
-                result = "b";
-                break;
-            case "63":
-                result = "c";
-                break;
-            case "64":
-                result = "d";
-                break;
-            case "65":
-                result = "e";
-                break;
-            case "66":
-                result = "f";
-                break;
-            case "67":
-                result = "g";
-                break;
-            case "68":
-                result = "h";
-                break;
-            case "69":
-                result = "i";
-                break;
-            case "6A":
-                result = "j";
-                break;
-            case "6B":
-                result = "k";
-                break;
-            case "6C":
-                result = "l";
-                break;
-            case "6D":
-                result = "m";
-                break;
-            case "6E":
-                result = "n";
-                break;
-            case "6F":
-                result = "o";
-                break;
-            case "70":
-                result = "p";
-                break;
-            case "71":
-                result = "q";
-                break;
-            case "72":
-                result = "r";
-                break;
-            case "73":
-                result = "s";
-                break;
-            case "74":
-                result = "t";
-                break;
-            case "75":
-                result ="u";
-                break;
-            case "76":
-                result = "v";
-                break;
-            case "77":
-                result = "w";
-                break;
-            case "78":
-                result = "x";
-                break;
-            case "79":
-                result = "y";
-                break;
-            case "7A":
-                result = "z";
-                break;
-            case "00":
-                result = "";
-                break;
-            case "20":
-                result = "　";
-                break;
-            case "A7":
-                result = "ぁ";
-                break;
-            case "A8":
-                result = "ぃ";
-                break;
-            case "A9":
-                result = "ぅ";
-                break;
-            case "AA":
-                result = "ぇ";
-                break;
-            case "AB":
-                result = "ぉ";
-                break;
-            case "AC":
-                result = "ゃ";
-                break;
-            case "AD":
-                result = "ゅ";
-                break;
-            case "AE":
-                result = "ょ";
-                break;
-            case "AF":
-                result = "っ";
-                break;
-            case "B1":
-                result = "あ";
-                break;
-            case "B2":
-                result = "い";
-                break;
-            case "B3":
-                result = "う";
-                break;
-            case "B4":
-                result = "え";
-                break;
-            case "B5":
-                result = "お";
-                break;
-            case "B6":
-                result = "か";
-                break;
-            case "B7":
-                result = "き";
-                break;
-            case "B8":
-                result = "く";
-                break;
-            case "B9":
-                result = "け";
-                break;
-            case "BA":
-                result = "こ";
-                break;
-            case "BB":
-                result = "さ";
-                break;
-            case "BC":
-                result = "し";
-                break;
-            case "BD":
-                result = "す";
-                break;
-            case "BE":
-                result = "せ";
-                break;
-            case "BF":
-                result = "そ";
-                break;
-            case "C0":
-                result = "た";
-                break;
-            case "C1":
-                result = "ち";
-                break;
-            case "C2":
-                result = "つ";
-                break;
-            case "C3":
-                result = "て";
-                break;
-            case "C4":
-                result = "と";
-                break;
-            case "C5":
-                result = "な";
-                break;
-            case "C6":
-                result = "に";
-                break;
-            case "C7":
-                result = "ぬ";
-                break;
-            case "C8":
-                result = "ね";
-                break;
-            case "C9":
-                result = "の";
-                break;
-            case "CA":
-                result = "は";
-                break;
-            case "CB":
-                result = "ひ";
-                break;
-            case "CC":
-                result = "ふ";
-                break;
-            case "CD":
-                result = "へ";
-                break;
-            case "CE":
-                result = "ほ";
-                break;
-            case "CF":
-                result = "ま";
-                break;
-            case "D0":
-                result = "み";
-                break;
-            case "D1":
-                result = "む";
-                break;
-            case "D2":
-                result = "め";
-                break;
-            case "D3":
-                result = "も";
-                break;
-            case "D4":
-                result = "や";
-                break;
-            case "D5":
-                result = "ゆ";
-                break;
-            case "D6":
-                result = "よ";
-                break;
-            case "D7":
-                result = "ら";
-                break;
-            case "D8":
-                result = "り";
-                break;
-            case "D9":
-                result = "る";
-                break;
-            case "DA":
-                result = "れ";
-                break;
-            case "DB":
-                result = "ろ";
-                break;
-            case "DC":
-                result = "わ";
-                break;
-            case "A6":
-                result = "を";
-                break;
-            case "DD":
-                result = "ん";
-                break;
-            case "DE":
-                result = "゛";
-                break;
-            case "DF":
-                result = "゜";
-                break;
-            case "2D":
-                result = "-";
-                break;
-            case "A5":
-                result = "・";
-                break;
-            case "3D":
-                result = "=";
-                break;
-            default:
-                result = "☒";
-                break;
-        }
-        return result;
     }
 
     public interface FelicaLib extends Library {

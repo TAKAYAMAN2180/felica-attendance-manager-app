@@ -2,7 +2,6 @@ import javazoom.jl.decoder.JavaLayerException;
 import javazoom.jl.player.AudioDevice;
 import javazoom.jl.player.FactoryRegistry;
 import javazoom.jl.player.advanced.AdvancedPlayer;
-import org.apache.poi.ss.usermodel.*;
 
 import javax.swing.*;
 import java.awt.*;
@@ -18,66 +17,22 @@ import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-public class Main extends JFrame implements ActionListener, WindowListener {
+public class Main extends JFrame implements ActionListener {
 
-    private final boolean IS_ENTRANCE;
-    private final File file;
-    private final String FILEPATH_OF_BODY_TEMPERATURE_SHEET;
-    public JTextField studentNumField;
+    public JTextField idmField;
     public JLabel labelForInfo;
     public JLabel labelForMsg;
-    public JLabel labelForTemperaMsg;
-    private String temStudentNum = "";
+    private String temIdm = "";
     //出席管理データの次に入力する列の番号を保持
     private int count = 0;
+    private final int roomId;
 
-    Main(boolean hasEntrance, String filePathOfBodyTemperatureSheet) {
-        this.FILEPATH_OF_BODY_TEMPERATURE_SHEET = filePathOfBodyTemperatureSheet;
-        this.IS_ENTRANCE = hasEntrance;
+    Main(int roomId) {
+        this.roomId = roomId;
 
-        Date startTime = new Date();
 
-        String pass = System.getProperty("user.home") + "\\Desktop";
-        String fileName = new SimpleDateFormat("MM月dd日 kk時mm分ss秒").format(startTime) + "～" + "入退出時間管理表.xlsx";
-        this.file = new File(pass, fileName);
-
-        Workbook wb = null;
-
-        try (InputStream fis = this.getClass().getResourceAsStream("template.xlsx")) {
-            wb = WorkbookFactory.create(fis);
-        } catch (FileNotFoundException fileNotFoundException) {
-            fileNotFoundException.printStackTrace();
-        } catch (IOException ioException) {
-            ioException.printStackTrace();
-        }
-        CellStyle cs = wb.createCellStyle();
-        cs.setAlignment(HorizontalAlignment.CENTER);
-
-        Sheet sheet = wb.getSheetAt(0);
-        Row rowForInfo = sheet.getRow(1);
-        Cell cellForInfo = rowForInfo.createCell(6);
-
-        if (this.IS_ENTRANCE) {
-            cellForInfo.setCellValue("入室");
-        } else {
-            cellForInfo.setCellValue("退出");
-        }
-
-        Row rowForTime = sheet.getRow(2);
-        Cell cellForStartTime = rowForTime.createCell(6);
-        cellForStartTime.setCellValue(new SimpleDateFormat("MM/dd kk:mm:ss").format(startTime));
-
-        try (FileOutputStream fos = new FileOutputStream(file)) {
-            wb.write(fos);
-        } catch (FileNotFoundException fileNotFoundException) {
-            fileNotFoundException.printStackTrace();
-        } catch (IOException ioException) {
-            ioException.printStackTrace();
-        }
-
-        addWindowListener(this);
-
-        setTitle("入退出時間管理表");
+        //GUIのデザイン
+        setTitle("入退出管理システム");
         Toolkit toolkit = getToolkit();
         Dimension screenSize = toolkit.getScreenSize();
         Insets screenInsets = toolkit.getScreenInsets(getGraphicsConfiguration());
@@ -107,7 +62,7 @@ public class Main extends JFrame implements ActionListener, WindowListener {
 
         panel.add(new JLabel(" "));
 
-        JLabel label = new JLabel("学生証をカードリーダーにタッチするか、手動で入力してください。");
+        JLabel label = new JLabel("ICカードをカードリーダーにタッチしてください。");
         label.setHorizontalAlignment(SwingConstants.CENTER);
         label.setAlignmentX(Component.CENTER_ALIGNMENT);
         panel.add(label);
@@ -117,16 +72,16 @@ public class Main extends JFrame implements ActionListener, WindowListener {
         JPanel panelOfFlowLayout = new JPanel();
         panelOfFlowLayout.setLayout(new FlowLayout());
 
-        JLabel label2 = new JLabel("学籍番号:");
+        JLabel label2 = new JLabel("IDM:");
         label2.setFont(new Font("msgothic.ttc", Font.PLAIN, 30));
         panelOfFlowLayout.add(label2);
 
-        this.studentNumField = new JTextField("");
-        this.studentNumField.addActionListener(this);
-        this.studentNumField.setActionCommand("Student number input");
-        this.studentNumField.setFont(new Font("msgothic.ttc", Font.PLAIN, 30));
-        this.studentNumField.setPreferredSize(new Dimension(200, 40));
-        panelOfFlowLayout.add(this.studentNumField);
+        this.idmField = new JTextField("");
+        this.idmField.addActionListener(this);
+        this.idmField.setActionCommand("Idm number input");
+        this.idmField.setFont(new Font("msgothic.ttc", Font.PLAIN, 30));
+        this.idmField.setPreferredSize(new Dimension(400, 40));
+        panelOfFlowLayout.add(this.idmField);
 
         panel.add(panelOfFlowLayout);
 
@@ -146,15 +101,7 @@ public class Main extends JFrame implements ActionListener, WindowListener {
         this.labelForMsg.setAlignmentX(Component.CENTER_ALIGNMENT);
         this.labelForMsg.setHorizontalAlignment(SwingConstants.CENTER);
         this.labelForMsg.setFont(new Font("UDDigiKyokashoN-B.ttc", Font.BOLD, 80));
-        this.labelForMsg.setForeground(Color.RED);
         panelForLabelForMsg.add(this.labelForMsg);
-
-        this.labelForTemperaMsg = new JLabel(" ");
-        this.labelForTemperaMsg.setAlignmentX(Component.CENTER_ALIGNMENT);
-        this.labelForTemperaMsg.setHorizontalAlignment(SwingConstants.CENTER);
-        this.labelForTemperaMsg.setFont(new Font("UDDigiKyokashoN-B.ttc", Font.BOLD, 80));
-        this.labelForTemperaMsg.setForeground(Color.RED);
-        panelForLabelForMsg.add(this.labelForTemperaMsg);
 
         panel.add(panelForLabelForMsg);
 
@@ -173,121 +120,49 @@ public class Main extends JFrame implements ActionListener, WindowListener {
 
     }
 
-    private static boolean checkEmpty(Cell cell) {
-        boolean isEmpty = false;
-        try {
-            if (cell.getDateCellValue() != null) {
-                isEmpty = true;
-            }
-        } catch (IllegalStateException e) {
-            try {
-                if (cell.getStringCellValue() != null) {
-                    isEmpty = true;
-                }
-            } catch (IllegalArgumentException ex) {
-                if (String.valueOf((long) cell.getNumericCellValue()) != null) {
-                    isEmpty = true;
-                }
-            }
-        }
-        return isEmpty;
-    }
-
-    public void process(String studentNum, String studentName) {
-        this.labelForTemperaMsg.setText("");
+    public void process(String idm) {
         this.labelForMsg.setText("");
 
         String musicFilePath = null;
-        this.temStudentNum = studentNum;
-        if (this.IS_ENTRANCE) {
-            this.labelForInfo.setText("受け付けました。");
-            musicFilePath = "celebrationMusic.mp3";
+        this.temIdm = idm;
+        musicFilePath = "celebrationMusic.mp3";
+
+        //ここでアクセスして出席か退出を取得
+        String result;
+        try {
+            result = HttpUtil.sendHttpRequest("POST", "https://felica-attendance-manager.azurewebsites.net/api/rooms/" + this.roomId + "/update?idm=" + idm);
+        } catch (IOException e) {
+            e.printStackTrace();
+
+            JOptionPane.showInternalMessageDialog(this.getContentPane(), "リクエストを送信中に予期せぬエラーが発生しました。");
+            return;
+        }
+
+        //名前が登録されているかを確認
+        String getName = "";
+        try {
+            getName = HttpUtil.sendHttpRequest("GET", "https://felica-attendance-manager.azurewebsites.net/api/name/get?idm=" + idm);
+        } catch (IOException ioException) {
+            ioException.printStackTrace();
+            JOptionPane.showInternalMessageDialog(this.getContentPane(), "リクエストを送信中に予期せぬエラーが発生しました。");
+            return;
+        }
+        if (getName.equals("")) {
+            getName = idm;
+        }
+
+        this.labelForMsg.setText(getName);
+        boolean isEntry;
+        if (result.equals("attend")) {
+            isEntry = true;
+            this.labelForMsg.setText(this.labelForMsg.getText()+"が入室しました");
+        } else if (result.equals("exit")) {
+            isEntry = false;
+            this.labelForMsg.setText(this.labelForMsg.getText()+"が退出しました");
         } else {
-            this.labelForInfo.setText("受け付けました。お疲れ様でした。");
-            musicFilePath = "farewellGreeting.mp3";
+            JOptionPane.showInternalMessageDialog(this.getContentPane(), "データの解析中にエラーが発生しました。");
+            return;
         }
-        if (this.IS_ENTRANCE) {
-            //体温記録表が提出されているかの確認
-            Workbook workbookToRead = null;
-            try {
-                workbookToRead = WorkbookFactory.create(new File(this.FILEPATH_OF_BODY_TEMPERATURE_SHEET));
-            } catch (IOException ioException) {
-                JOptionPane.showMessageDialog(this, "指定されたパスのデータが体温記録のExcelデータではありません。");
-                ioException.printStackTrace();
-                System.exit(-1);
-            }
-            Sheet sheetToRead = null;
-            try {
-                sheetToRead = workbookToRead.getSheetAt(0);
-            } catch (NullPointerException | IllegalArgumentException e) {
-                JOptionPane.showInternalMessageDialog(this.getContentPane(), "選択したExcelファイルにはシートがありません。確認してください。プログラムを終了します。",
-                        "エラー", JOptionPane.ERROR_MESSAGE);
-            }
-            boolean hasRegistered = false;
-            int currentRowCountForCheck = 1;
-            while (true) {
-                Row rowToRead = sheetToRead.getRow(currentRowCountForCheck);
-                Cell cellToRead = null;
-                try {
-                    cellToRead = rowToRead.getCell(1);
-                } catch (NullPointerException nullPointerException) {
-                    hasRegistered = false;
-                    break;
-                }
-                String getStudentNumOfTemperatureData = null;
-                try {
-                    getStudentNumOfTemperatureData = String.valueOf((long) cellToRead.getNumericCellValue());
-                } catch (IllegalStateException | NullPointerException illegalStateException) {
-                    try {
-                        getStudentNumOfTemperatureData = cellToRead.getStringCellValue();
-                    } catch (IllegalStateException | NullPointerException illegalStateException1) {
-                        hasRegistered = false;
-                    }
-                    break;
-                }
-                if (getStudentNumOfTemperatureData.equals(String.valueOf(studentNum))) {
-                    hasRegistered = true;
-                    //学生証番号の一致->msgの出力
-                    Cell cellOfMsg = rowToRead.getCell(2);
-                    Cell cell=rowToRead.getCell(1);
-
-
-                    String msg = "";
-                    try {
-                        msg = cellOfMsg.getStringCellValue();
-                        //音声を流し、ラベルを変更したうえで終了
-                        musicFilePath = "errSound.mp3";
-                        this.labelForMsg.setText(msg);
-                        break;
-                    } catch (NullPointerException ex) {
-                        //No msg
-                        break;
-                    } catch (IllegalArgumentException illegalArgumentException) {
-                        try {
-                            msg = cellOfMsg.getStringCellValue();
-                            //音声を流し、ラベルを変更したうえで終了
-                            musicFilePath = "errSound.mp3";
-                            this.labelForMsg.setText(msg);
-                            break;
-                        } catch (IllegalArgumentException illegalArgumentException1) {
-                            JOptionPane.showMessageDialog(this, "メッセージの欄には文字列もしくは数字を入力してください。", "エラー", JOptionPane.ERROR_MESSAGE);
-                        }
-                    }
-                }
-                currentRowCountForCheck++;
-            }
-            if (!hasRegistered) {
-                musicFilePath = "errSound.mp3";
-                this.labelForTemperaMsg.setText("体温記録表が提出されていません。");
-            } else {
-                this.labelForTemperaMsg.setText("");
-            }
-        }
-        Clerk clerk = new Clerk(studentNum, studentName, this.IS_ENTRANCE);
-        OutputThread outputThread = new OutputThread(this.file, clerk, this.count);
-        this.count++;
-        Thread threadForOutputThread = new Thread(outputThread);
-        threadForOutputThread.start();
 
         try (InputStream is = this.getClass().getResourceAsStream(musicFilePath)) {
             play(is);
@@ -311,72 +186,11 @@ public class Main extends JFrame implements ActionListener, WindowListener {
     @Override
     public void actionPerformed(ActionEvent e) {
         switch (e.getActionCommand()) {
-            case "Student number input":
-                if (!this.temStudentNum.equals(this.studentNumField.getText())) {
-                    process(this.studentNumField.getText(), null);
+            case "Idm number input":
+                if (!this.temIdm.equals(this.idmField.getText())) {
+                    process(this.idmField.getText());
                 }
         }
     }
 
-    @Override
-    public void windowOpened(WindowEvent e) {
-
-    }
-
-    @Override
-    public void windowClosing(WindowEvent e) {
-        Workbook wb = null;
-        try (FileInputStream fis = new FileInputStream(this.file)) {
-            wb = WorkbookFactory.create(fis);
-        } catch (FileNotFoundException fileNotFoundException) {
-            fileNotFoundException.printStackTrace();
-        } catch (IOException ioException) {
-            ioException.printStackTrace();
-        }
-        CellStyle cs = null;
-        try {
-            cs = wb.createCellStyle();
-        } catch (NullPointerException nullPointerException) {
-            JOptionPane.showMessageDialog(this, "Template.xlsが不正に変更されています。", "エラー", JOptionPane.ERROR_MESSAGE);
-        }
-        cs.setAlignment(HorizontalAlignment.CENTER);
-
-        Sheet sheet = wb.getSheetAt(0);
-        Row rowForTime = sheet.getRow(2);
-        Cell cellForEndTime = rowForTime.createCell(8);
-        cellForEndTime.setCellValue(new SimpleDateFormat("MM/dd kk:mm:ss").format(new Date()));
-
-        try (FileOutputStream fos = new FileOutputStream(file)) {
-            wb.write(fos);
-        } catch (FileNotFoundException fileNotFoundException) {
-            JOptionPane.showMessageDialog(this, fileNotFoundException.getMessage(), "エラー", JOptionPane.ERROR_MESSAGE);
-        } catch (IOException ioException) {
-            ioException.printStackTrace();
-        }
-    }
-
-    @Override
-    public void windowClosed(WindowEvent e) {
-
-    }
-
-    @Override
-    public void windowIconified(WindowEvent e) {
-
-    }
-
-    @Override
-    public void windowDeiconified(WindowEvent e) {
-
-    }
-
-    @Override
-    public void windowActivated(WindowEvent e) {
-
-    }
-
-    @Override
-    public void windowDeactivated(WindowEvent e) {
-
-    }
-}
+   }
